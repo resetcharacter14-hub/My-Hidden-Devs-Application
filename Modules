@@ -1,3 +1,182 @@
 # Modules
 
-1. TweenModule:
+-[ IMPORTANT NOTE:
+  they should be like this:
+
+        QuestSystem(The main local script)
+        |__ Modules(Folder)
+        |   |__ TweenModule(ModuleScript)
+        |   |__ QuestService(ModuleScript)
+        |
+        |__ ModuleFinder(ModuleScript)
+
+]-
+
+--> 1. TweenModule:
+
+local TweenModule = {}
+
+local TweenService = game:GetService("TweenService")
+
+function TweenModule:CreateTween(object, duration, style, direction, props)
+	local easingStyle = Enum.EasingStyle[style] or Enum.EasingStyle.Quad
+	local easingDirection = Enum.EasingDirection[direction] or Enum.EasingDirection.Out
+
+	local tweenInfo = TweenInfo.new(
+		duration,
+		easingStyle,
+		easingDirection
+	)
+
+	return TweenService:Create(object, tweenInfo, props)
+end
+
+return TweenModule
+
+--------------------------------------------------------------------------------
+
+--> 2. QuestService:
+
+local QuestService = {}
+QuestService.__index = QuestService
+
+local Player = game.Players.LocalPlayer
+local Gui = Player.PlayerGui
+local QuestGui = Gui:WaitForChild("QuestGui")
+local Main = QuestGui:WaitForChild("Main")
+local Template = script:WaitForChild("Template")
+
+local TweenModule = require(script.Parent.TweenModule)
+
+local DisplayFrame = QuestGui:WaitForChild("DisplayFrame")
+local Content = DisplayFrame:WaitForChild("Content")
+local ContentText = Content:WaitForChild("Text")
+
+local MAX_QUESTS = 4
+local EQUIPPED = false
+
+local Quest = {}
+Quest.__index = Quest
+
+function Quest:UpdateProgress(amount)
+	if self.Completed then return end
+	
+	self.Progress = math.clamp(self.Progress + amount, 0, self.Goal)
+	self.Bar.Size = UDim2.new(self.Progress / self.Goal, 0, self.Bar.Size.Y.Scale, 0)
+	self.Percentage.Text = math.floor((self.Progress / self.Goal) * 100) .. "%"
+
+	if self.Progress >= self.Goal then
+		self:Complete()
+	end
+end
+
+function Quest:DefaultOnComplete()
+	if EQUIPPED then
+		EQUIPPED = false
+	end
+	print("Quest complete:", self.Objective)
+	EQUIPPED = false
+	self.Clone:Destroy()
+	
+	TweenModule:CreateTween(DisplayFrame, 0.3, "Back", "In", {Position = UDim2.new(1.5, 0, 0.23, 0)}):Play()
+end
+
+function Quest:Complete()
+	if self.Completed then return end
+	
+	self.Completed = true
+	
+	self:DefaultOnComplete()
+	if self.OnCompleteCallback then
+		self.OnCompleteCallback(self)
+	end
+end
+
+function QuestService.new()
+	local self = setmetatable({}, QuestService)
+	self.Quests = {}
+	return self
+end
+
+function QuestService:AddQuest(objective, progress, goal, onStart, onComplete)
+	if #self.Quests >= MAX_QUESTS then
+		warn("Maximum quests reached, You can't add more than " .. MAX_QUESTS .. " quests.")
+		return
+	end
+	local Clone = Template:Clone()
+	Clone.Parent = Main
+
+	local ObjectiveLabel = Clone:WaitForChild("Objective")
+	local ProgressBar = Clone:WaitForChild("ProgressBar")
+	local Bar = ProgressBar:WaitForChild("Bar")
+	local Percentage = ProgressBar:WaitForChild("Percentage")
+	local StartButton = Clone:WaitForChild("Start")
+
+	ObjectiveLabel.Text = objective
+	Bar.Size = UDim2.new(progress / goal, 0, Bar.Size.Y.Scale, 0)
+	Percentage.Text = math.floor((progress / goal) * 100) .. "%"
+
+	local quest = setmetatable({
+		Clone = Clone,
+		Objective = objective,
+		Progress = progress,
+		Goal = goal,
+		Bar = Bar,
+		Percentage = Percentage,
+		OnStart = onStart,
+		OnCompleteCallback = onComplete,
+		Started = false,
+		Completed = false
+	}, Quest)
+
+	StartButton.MouseButton1Up:Connect(function()
+		if EQUIPPED then
+			return
+		end
+		EQUIPPED = true
+		if quest.Started then return end
+		StartButton:Destroy()
+		quest.Started = true
+		if quest.OnStart then
+			quest.OnStart(quest)
+			print("Quest started:", quest.Objective)
+			
+			TweenModule:CreateTween(DisplayFrame, 0.3, "Back", "Out", {Position = UDim2.new(0.83, 0, 0.23, 0)}):Play()
+			ContentText.Text = tostring(quest.Objective)
+		end
+	end)
+
+	table.insert(self.Quests, quest)
+	return quest
+end
+
+return QuestService
+
+---------------------------------------------------------------------------------------------------
+
+3. ModuleFinder:
+
+local ModuleFinder = {}
+
+local ModulesFolder = script.Parent:WaitForChild("Modules")
+local Cache = {}
+
+for _, module in ipairs(ModulesFolder:GetDescendants()) do
+	if module:IsA("ModuleScript") then
+		Cache[module.Name] = module
+	end
+end
+
+function ModuleFinder.FindModule(moduleName)
+	local module = Cache[moduleName]
+
+	if not module then
+		warn("Couldn't find module:", moduleName)
+	end
+
+	return require(module)
+end
+
+return ModuleFinder
+
+-------------------------------------------------------------------------------------------------------

@@ -1,19 +1,19 @@
-Hello, I'm resetcharacter. I'm an advanced luau scripter and this repository contains a small quest system i made.
+> Hello, I'm resetcharacter. I'm an advanced luau scripter and this repository contains a small quest system i made.
 
-overview:
+> overview:
 
     > language: Luau (Roblox studio)
     > purpose: I want to show my scripting skills for Hidden-Devs commissions application
     > lines: 200+ lines
 
-What i have in this script:
+> What i have in this script:
 
     1. Collect 10 apples (a basic collect-and-reward quest)
     2. Jump 12 times (a very basic action tracking quest)
     3. Draw the shown image (an advanced drawing/pixel puzzel using a scalable color palette table and UI refrences)
 
 
-How to test/preview (Or just watch the video attached to this repository):
+> How to test/preview (**Or just watch the video attached to this repository**):
 
     1. Create a test place in Roblox studio
     2. Add these objects to the test:
